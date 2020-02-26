@@ -1,0 +1,14 @@
+This project is an attempt to model resource allocation and OFDMA in the LTE standard downlink.
+
+INPUTS:
+To run this simulation, choose either 16 or 64 QAM modulation at input request.
+Then choose either 0 or 10 SNR at input request.
+
+OUTPUTS:
+Scatterplots showing the bits in the symbol after each stage of the modulation will appear.
+The BER is computed for each block of symbols and printed. 
+A plot of the Peak to Average Power Ratio Cumulative Distriution Function is displayed. 
+
+The script was written with MATLAB R2019b.
+
+NOTE: Intermittantly the script sends a reshape error. I am still locating th source. If this error occurs, try to run the program again.
