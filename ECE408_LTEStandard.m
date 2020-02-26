@@ -45,7 +45,12 @@ elseif modulation == 64
 end
     
 SNR = input('Choose SNR Value: [0] or [10] \n');
-
+if SNR == 0
+    SNRstring = '0dB';
+elseif SNR == 10
+    SNRstring = '10dB';
+end 
+    
 % Definitions %
 % QPSK Table
 qpsk_table = 1/sqrt(2)*[1+j, 1-j,-1+j,-1-j];
@@ -148,21 +153,25 @@ end % end subframe loop
 
 ber = mean(berVec',1)
 
+
 %% Checkpoints
+
+
 scatterplot(txGuards)
-titleString = sprintf('Input to IFFT, txGuards: %s Modulated with DC at 0',...
-    modulationString);
+titleString = sprintf('%s %s: txGuards:', modulationString, SNRstring);
 title(titleString)
 
 scatterplot(txSymbol)
-titleString = sprintf('txSymbol: %s Modulated without DC', modulationString);
+titleString = sprintf('%s %s: txSymbol', modulationString, SNRstring);
 title(titleString)
 
 scatterplot(txOFDM)
-title('Output of IFFT')
+titleString = sprintf('%s %s: output of IFFT (tx)', modulationString, SNRstring);
+title(titleString)
 
 scatterplot(rxFFT)
-title('Recieved signal: Output of FFT')
+titleString = sprintf('%s %s: output of FFT (rx)', modulationString, SNRstring);
+title(titleString)
 
 
 %% Plot Complementary Cumulative Distribution Function of the Peak to Average Power Ratio
@@ -176,7 +185,7 @@ semilogy(10*log10(bins), ccdf)
 grid
 xlabel('PAPR (dB)')
 ylabel('Probability')
-titleString = sprintf('PAPR CCDF for %s',modulationString); 
+titleString = sprintf('PAPR CCDF for %s %s',modulationString, SNRstring); 
 title(titleString);
 legend(modulationString)
 
