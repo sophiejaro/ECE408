@@ -1,129 +1,84 @@
+clc
 clear all
 close all
-
-% Goal: Find the ASCII Message
-% LFSR Reference: http://in.ncu.edu.tw/ncume_ee/digilogi/prbs.htm
-
 load('Rcvd_Jaro.mat', 'Rcvd')
-scatterplot(Rcvd)
-title('Constellation Plot of Encoded Message')
 
-%% Filter recieved signal with RRC Filter
-beta = 0.75; % RRC rolloff factor
-B_RCOS = [0.0038 0.0052 -0.0044 -0.0121 -0.0023 0.0143 0.0044 -0.0385...
-    -0.0563 0.0363 0.2554 0.4968 0.6025 0.4968 0.2554 0.0363 -0.0563 -0.0385...
-    0.0044 0.0143 -0.0023 -0.0121 -0.0044 0.0052 0.0038];
-filtered = filter(B_RCOS,1,Rcvd);
+% Filter recieved signal with RRC Filter
+B_RCOS = [0.0038 0.0052 -0.0044 -0.0121 -0.0023 0.0143 0.0044 -0.0385 -0.0563 0.0363 0.2554 ...
+    0.4968 0.6025 0.4968 0.2554 0.0363 -0.0563 -0.0385 0.0044 0.0143 -0.0023 -0.0121 -0.0044 ...
+    0.0052 0.0038];
+unfilterRcvd = filter(B_RCOS,1,Rcvd);
 
-%% Generate m sequence
-mSeq = mSeqGen();
+% Generate m sequence
+G = [1 1 1 0 0 0 0 1]; % G(X)= X^8 + X^7 + X^6 + X + 1
+M = mSeqGen(G);
 
-%% Oversample m sequence
-upMseq = upsample(mSeq,4);
+% Oversample the m sequence 
+spreadM = (reshape([1-2*M;zeros(3,length(M))],1,[]));
 
-% figure
-% plot((filter(fliplr(upMseq),1,repmat(mSeq,5,1))));
-% This plot looks like a noisy line with positive slope
+% Correlate oversampled m against oversampled unfiltered Rcvd
+plot(abs(filter(fliplr(spreadM),1,unfilterRcvd)));
+title('Oversampled M Sequence Correlated with Unfiltered Rcvd')
+% observe first max at x = 1044
 
-% figure
-% plot(filter(fliplr(upMseq),1,real(filtered)));
-% Bad correlation
+% Begin downsampling by 4 from there
+downsampleRcvd = unfilterRcvd(1044:4:end);
 
-figure
-plot((xcorr(upMseq,real(filtered))));
-title('Correlation: Oversampled M Sequence with Filtered Rcvd')
-% first impulse at x = 576, y = -67; next at x = 1596, y = -101
+% Repeat m to match length of downsampled unfiltered Rcvd
+repM = repmat(1-2*M,1,ceil(length(downsampleRcvd)/255));
 
-%% Downsample filtered signal
-downsampled = downsample(filtered,4);
+% Descramble by applying m sequence
+descrambled = downsampleRcvd.*repM(1:length(downsampleRcvd));
 
-%% Find and Correct Offset
-figure
-plot((xcorr(mSeq,real(downsampled(1:255)))));
-title('Correlation: M Sequence with Filtered Rcvd Length of 1 Pilot (255)')
-% There appears to be a offset of 144 
-shiftmSeq = circshift(mSeq,144);
+% Phase Shift (rotate to zero degrees)
+theta = angle(descrambled);
+rotated = exp(-1j*theta).*(descrambled);
+scatterplot(rotated)
+title('Rotated Message')
 
-% figure
-% plot(xcorr(shiftmSeq,real(downsampled(1:255))));
-% First impulse at 255, so I assume the offset is corrected (?)
+% Reshape to apply hadamard matrix
+frames = (floor(length(rotated)/255)); % Finds number of complete frames
+a = rotated(1:frames*255); % Take only complete frames
+b = reshape(a,255,[]); % 1 Column = 1 Frame = 255 Chips
+c = reshape(b(1:192,:),[],8); % Data is stored only in the first 192 chips
+msg = reshape(c,8,[]); % 1 Column = 8 Chips
 
-%% Apply m Sequence
-nFrame = length(downsampled)/255;
-longshiftmSeq = repmat(shiftmSeq,nFrame,1);
-post_m = longshiftmSeq'.*downsampled;
-scatterplot(post_m)
-title('Constellation Plot of Signal with M Sequence Applied')
+% Decode with 8-ary hadamard matrix
+h = hadamard(8);
+decoded = msg.'*h;
 
-%% Phase Shift
-% The constellation plot of the signal after the m-sequence is applied is a
-% circle. The points are brought down to the x-axis.
-sign = ((real(post_m)>0) - 0.5).*2;
-freqAdjusted = sign.*(abs(post_m));
-scatterplot(freqAdjusted)
-title('Frequency-Adjusted Signal')
+% BPSK Demod
+demod = pskdemod(decoded,2);
 
-%% Shift to zeroes and ones
-% The signal is now spread across the real line. The following moves points
-% closest to 0 to 0, points closest to -1 to -1, and points closest to 1 to
-% 1.
-for i = 1:length(freqAdjusted)
-    x = freqAdjusted(i);
-    if (x > -.5) && (x < 0.5)
-        freqAdjusted(i)=0;
-    elseif x >0.5
-        freqAdjusted(i)=1;
-    elseif x<-0.5
-        freqAdjusted(i)=-1;
+% Take the output from Walsh Channel 5 
+channel_5 =(demod(:,6)).';
+
+% Convert binary to decimal to char
+c_out = zeros(1,length(channel_5)/8); 
+for i = 1:length(channel_5)/8
+    c_out(i) = (bi2de(channel_5((i-1)*8+1:i*8),'right-msb'));
+end
+
+%Print Secret Message
+SecretMessage = char(c_out) 
+
+%'I've got a theory, it could be bunnies...þ'
+% Buffy the Vampite Slayer
+
+%% Functions %%
+function [M] = mSeqGen(G)
+    lfsr = zeros(1,length(G));
+    lfsr(end) = 1;
+
+    M = zeros(1,255);
+    M(end) = lfsr(end);
+
+    for m = 1:length(M)-1
+        last = lfsr(end);
+        for i = length(lfsr):-1:2
+            lfsr(i) = mod(lfsr(i-1)+G(i)*last,2);
+        end
+        lfsr(1)=last;
+        M(length(M)-m) = lfsr(end);
     end
 end
-binaryAdjusted = freqAdjusted;
-%scatterplot(binaryAdjusted) % Dots at -1, 0, 1
-
-%% Reshape into an 8x510 matrix
-% The new signal must be reshaped for the hadamard matrix to be applied. 
-signalMat8 = reshape(binaryAdjusted,[8,510]);
-
-%% Generate 8-ary matrix 
-% The hadamard function generates the hadamard matrix
-hMat=hadamard(8);
-
-%% Multiple 8-ary Hadamard Matrix by 8x510 Signal Matrix
-out = hMat*signalMat8;
-data = out(6,:); % channel 5
-%scatterplot(data) % data scattered at integers along on x-axis
-
-%% Convert to -1 and 1 
-for i = 1:length(data)
-    x=data(i);
-    if x <= 0 
-        data(i) = 1;
-    elseif x > 0
-        data(i) = -1;
-%     else
-%         data(i) = 0;
-    end
-end
-preBPSK = data;
-%scatterplot(preBPSK) % Dots at -1, 0, 1
-
-%% BPSK Demod
-for i = 1:length(preBPSK)
-    x = preBPSK(i);
-    if x == -1
-        preBPSK(i) = 1;
-    elseif x == 1
-        preBPSK(i) = 0;
-    end
-end
-demodData = preBPSK;
-%scatterplot(demodData) % Dots at 0, 1
-
-%% Obtain Characters
-out = reshape(transpose(demodData(1:504)),[8 63]); % divisible by 8
-out = transpose(out);
-for i = 1:63
-    c(i) = char(bi2de(out(i,:),'left-msb'));
-end
-
-SecretMessage = c % Prints SecretMessage to command window
