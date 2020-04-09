@@ -62,7 +62,7 @@ end
 %Print Secret Message
 SecretMessage = char(c_out) 
 
-%'I've got a theory, it could be bunnies...þ'
+%'I've got a theory, it could be bunnies...Ã¾'
 % Buffy the Vampite Slayer
 
 %% Functions %%
