@@ -44,7 +44,7 @@ for i = 1:length(fm)% LOOP 1 for Max Doppler Frequency Shift
             h12 = raychan(fm(i),N);
             h21 = raychan(fm(i),N);
             h22 = raychan(fm(i),N);
-            H = [h11 h12; h21 h22];
+            H = [h11 h21; h12 h22];
             
             Mary = M(j);
             
@@ -70,7 +70,7 @@ for i = 1:length(fm)% LOOP 1 for Max Doppler Frequency Shift
             n =[n1; n2];
             
             % Send through channel
-            % [r1 ; r2] = [h11 h12; h21 h22][s1; s2] + [n1; n2]
+            % [r1 ; r2] = [h11 h21; h12 h22][s1; s2] + [n1; n2]
             y = H*x + n;
             
             % Zero-Forcing
@@ -143,7 +143,7 @@ for i = 1:length(fm)% LOOP 1 for Max Doppler Frequency Shift
             h12 = raychan(fm(i),N);
             h21 = raychan(fm(i),N);
             h22 = raychan(fm(i),N);
-            H = [h11 h12; h21 h22];
+            H = [h11 h21; h12 h22];
             
             % Set QAM
             Mary = M(j);
@@ -174,7 +174,7 @@ for i = 1:length(fm)% LOOP 1 for Max Doppler Frequency Shift
             n =[n1; n2];
             
             % Send signal through rayleigh channel and add noise
-            % [r1 ; r2] = [h11 h12; h21 h22][s1; s2] + [n1; n2]
+            % [r1 ; r2] = [h11 h21; h12 h22][s1; s2] + [n1; n2]
             y = H*x + n;
             
             % MMSE to eliminate ISI
@@ -252,7 +252,7 @@ for i = 1:length(fm)% LOOP 1 for Max Doppler Frequency Shift
             h12 = raychan(fm(i),N);
             h21 = raychan(fm(i),N);
             h22 = raychan(fm(i),N);
-            H = [h11 h12; h21 h22];
+            H = [h11 h21; h12 h22];
             
             % Get SVD decomposition
             [U,S,V] = svd(H);
